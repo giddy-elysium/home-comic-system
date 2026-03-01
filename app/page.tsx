@@ -1,6 +1,6 @@
-import issues from "../data/new-mutants-issues.json";
+import { catalog } from "../lib/catalog";
 import { Dashboard } from "../components/dashboard";
 
 export default function HomePage() {
-  return <Dashboard issues={issues} />;
+  return <Dashboard series={catalog} />;
 }

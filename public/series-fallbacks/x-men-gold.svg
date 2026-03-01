@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#121826" />
+      <stop offset="100%" stop-color="#8f6c12" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="1200" fill="url(#bg)" />
+  <rect x="44" y="44" width="712" height="1112" rx="32" fill="none" stroke="#ffe6a1" stroke-width="8" opacity="0.75" />
+  <text x="72" y="150" fill="#fff0ba" font-family="Georgia, serif" font-size="72" font-weight="700">X-Men: Gold</text>
+  <text x="72" y="235" fill="#fbe6a4" font-family="Arial, sans-serif" font-size="30" letter-spacing="8">RUN DATA WIRED</text>
+  <text x="72" y="285" fill="#fbe6a4" font-family="Arial, sans-serif" font-size="30" letter-spacing="8">OFFICIAL COVER PASS NEXT</text>
+  <path d="M130 950 L400 620 L670 950" stroke="#ffe6a1" stroke-width="18" fill="none" opacity="0.7" />
+</svg>

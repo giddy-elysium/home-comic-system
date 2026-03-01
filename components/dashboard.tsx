@@ -2,23 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Issue = {
-  issueNumber: number;
-  title: string;
-  releaseDate: string;
-  imageUrl: string;
-  issueUrl: string;
-};
+import type { CatalogSeries } from "../lib/catalog";
 
-type CollectionState = Record<number, "owned" | "wanted">;
+type IssueStatus = "owned" | "wanted";
+type CollectionState = Record<string, Record<number, IssueStatus>>;
 
 type DashboardProps = {
-  issues: Issue[];
+  series: CatalogSeries[];
 };
 
-const storageKey = "panel-vault-new-mutants";
+const storageKey = "back-issue-radar-collection-v1";
 
-export function Dashboard({ issues }: DashboardProps) {
+export function Dashboard({ series }: DashboardProps) {
+  const [selectedSeriesId, setSelectedSeriesId] = useState(series[0]?.id ?? "");
   const [selectedIssueNumber, setSelectedIssueNumber] = useState(1);
   const [collectionState, setCollectionState] = useState<CollectionState>({});
 
@@ -40,28 +36,60 @@ export function Dashboard({ issues }: DashboardProps) {
     window.localStorage.setItem(storageKey, JSON.stringify(collectionState));
   }, [collectionState]);
 
-  const selectedIssue = useMemo(
-    () => issues.find((issue) => issue.issueNumber === selectedIssueNumber) ?? issues[0],
-    [issues, selectedIssueNumber]
+  useEffect(() => {
+    setSelectedIssueNumber(1);
+  }, [selectedSeriesId]);
+
+  const selectedSeries = useMemo(
+    () => series.find((entry) => entry.id === selectedSeriesId) ?? series[0],
+    [selectedSeriesId, series]
   );
 
-  const ownedCount = Object.values(collectionState).filter((value) => value === "owned").length;
-  const wantedCount = Object.values(collectionState).filter((value) => value === "wanted").length;
-  const missingCount = issues.length - ownedCount;
-  const progress = Math.round((ownedCount / issues.length) * 100);
+  const selectedSeriesState = selectedSeries ? collectionState[selectedSeries.id] ?? {} : {};
 
-  function setStatus(issueNumber: number, status?: "owned" | "wanted") {
+  const selectedIssue = useMemo(() => {
+    if (!selectedSeries) {
+      return undefined;
+    }
+
+    return (
+      selectedSeries.issues.find((issue) => issue.issueNumber === selectedIssueNumber) ?? selectedSeries.issues[0]
+    );
+  }, [selectedIssueNumber, selectedSeries]);
+
+  const totalIssues = series.reduce((sum, entry) => sum + entry.issueCount, 0);
+  const totalOwned = Object.values(collectionState).reduce(
+    (sum, entry) => sum + Object.values(entry).filter((value) => value === "owned").length,
+    0
+  );
+  const totalWanted = Object.values(collectionState).reduce(
+    (sum, entry) => sum + Object.values(entry).filter((value) => value === "wanted").length,
+    0
+  );
+  const selectedOwned = Object.values(selectedSeriesState).filter((value) => value === "owned").length;
+  const selectedWanted = Object.values(selectedSeriesState).filter((value) => value === "wanted").length;
+  const selectedMissing = selectedSeries ? selectedSeries.issueCount - selectedOwned : 0;
+  const progress = selectedSeries ? Math.round((selectedOwned / selectedSeries.issueCount) * 100) : 0;
+
+  function setStatus(seriesId: string, issueNumber: number, status?: IssueStatus) {
     setCollectionState((current) => {
-      const next = { ...current };
+      const nextSeriesState = { ...(current[seriesId] ?? {}) };
 
       if (!status) {
-        delete next[issueNumber];
-        return next;
+        delete nextSeriesState[issueNumber];
+      } else {
+        nextSeriesState[issueNumber] = status;
       }
 
-      next[issueNumber] = status;
-      return next;
+      return {
+        ...current,
+        [seriesId]: nextSeriesState
+      };
     });
+  }
+
+  if (!selectedSeries || !selectedIssue) {
+    return null;
   }
 
   return (
@@ -71,83 +99,85 @@ export function Dashboard({ issues }: DashboardProps) {
           <div>
             <p className="topLabel">Collection Console</p>
             <h1>Back Issue Radar</h1>
+            <p className="topCopy">Developer-portal style planning board for cover runs, gaps, and future buying flows.</p>
           </div>
           <div className="topStats">
             <article className="statCard">
-              <span>Run</span>
-              <strong>33 issues</strong>
+              <span>Series loaded</span>
+              <strong>{series.length}</strong>
+            </article>
+            <article className="statCard">
+              <span>Total issues</span>
+              <strong>{totalIssues}</strong>
             </article>
             <article className="statCard">
               <span>Owned</span>
-              <strong>{ownedCount}</strong>
+              <strong>{totalOwned}</strong>
             </article>
             <article className="statCard">
-              <span>Need</span>
-              <strong>{missingCount}</strong>
-            </article>
-            <article className="statCard">
-              <span>Want list</span>
-              <strong>{wantedCount}</strong>
+              <span>Wanted</span>
+              <strong>{totalWanted}</strong>
             </article>
           </div>
         </header>
 
         <div className="workspaceShell">
-          <aside className="panel panelSide">
+          <aside className="panel panelSeriesRail">
             <div className="panelSection">
-              <p className="sectionLabel">Series</p>
-              <h2>New Mutants</h2>
-              <p className="seriesMeta">Marvel | 2019-2022 | 33 primary covers</p>
+              <p className="sectionLabel">Series registry</p>
+              <h2>Active shelves</h2>
               <p className="seriesCopy">
-                One-screen collection tracker for the full run. Select a cover, mark it as owned or wanted, and keep
-                the entire wall visible without scrolling the page.
+                The shell stays fixed. You swap series on the left, inspect the selected issue in the center, and work
+                the full cover wall on the right.
               </p>
             </div>
 
-            <div className="panelSection progressPanel">
-              <div className="progressHeader">
-                <span>Collection progress</span>
-                <strong>{progress}%</strong>
-              </div>
-              <div className="progressBar">
-                <span style={{ width: `${progress}%` }} />
-              </div>
-            </div>
+            <div className="seriesList">
+              {series.map((entry) => {
+                const entryState = collectionState[entry.id] ?? {};
+                const ownedCount = Object.values(entryState).filter((value) => value === "owned").length;
+                const wantedCount = Object.values(entryState).filter((value) => value === "wanted").length;
 
-            <div className="panelSection">
-              <p className="sectionLabel">Legend</p>
-              <div className="legendList">
-                <span className="legendItem owned">Owned</span>
-                <span className="legendItem wanted">Wanted</span>
-                <span className="legendItem neutral">Unmarked</span>
-              </div>
-            </div>
-
-            <div className="panelSection issueMiniList">
-              {issues.map((issue) => (
-                <button
-                  className={`issueMini ${selectedIssue.issueNumber === issue.issueNumber ? "active" : ""}`}
-                  key={issue.issueNumber}
-                  onClick={() => setSelectedIssueNumber(issue.issueNumber)}
-                  type="button"
-                >
-                  <span>#{issue.issueNumber}</span>
-                  <small>{collectionState[issue.issueNumber] ?? "clear"}</small>
-                </button>
-              ))}
+                return (
+                  <button
+                    className={`seriesCard ${entry.id === selectedSeries.id ? "active" : ""}`}
+                    key={entry.id}
+                    onClick={() => setSelectedSeriesId(entry.id)}
+                    type="button"
+                  >
+                    <div>
+                      <strong>{entry.title}</strong>
+                      <span>
+                        {entry.publisher} | {entry.rangeLabel}
+                      </span>
+                    </div>
+                    <div className="seriesCardMeta">
+                      <small>{entry.issueCount} issues</small>
+                      <small>
+                        {ownedCount} owned / {wantedCount} wanted
+                      </small>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </aside>
 
           <section className="panel panelHero">
             <div className="heroHead">
               <div>
-                <p className="sectionLabel">Selected issue</p>
-                <h2>{selectedIssue.title}</h2>
-                <p className="seriesMeta">{selectedIssue.releaseDate || "Official Marvel primary cover"}</p>
+                <p className="sectionLabel">Selected run</p>
+                <h2>{selectedSeries.title}</h2>
+                <p className="seriesMeta">
+                  {selectedSeries.publisher} | {selectedSeries.rangeLabel} | {selectedSeries.issueCount} issues
+                </p>
               </div>
-              <a className="externalButton" href={selectedIssue.issueUrl} target="_blank" rel="noreferrer">
-                Open Marvel
-              </a>
+              <div className="heroBadges">
+                <span className="wallCount">{selectedSeries.verifiedIssueCount} counted</span>
+                <a className="externalButton" href={selectedIssue.issueUrl} target="_blank" rel="noreferrer">
+                  Open issue ref
+                </a>
+              </div>
             </div>
 
             <div className="heroBody">
@@ -156,37 +186,66 @@ export function Dashboard({ issues }: DashboardProps) {
               </div>
 
               <div className="controlStage">
+                <div className="detailCard">
+                  <p className="detailLabel">Current issue</p>
+                  <h3>
+                    {selectedIssue.title}
+                    <span>#{selectedIssue.issueNumber}</span>
+                  </h3>
+                  <p>{selectedIssue.releaseDate || selectedSeries.planningNote}</p>
+                </div>
+
+                <div className="panelSection progressPanel">
+                  <div className="progressHeader">
+                    <span>Run progress</span>
+                    <strong>{progress}%</strong>
+                  </div>
+                  <div className="progressBar">
+                    <span style={{ width: `${progress}%` }} />
+                  </div>
+                  <div className="progressStats">
+                    <span>{selectedOwned} owned</span>
+                    <span>{selectedMissing} open</span>
+                    <span>{selectedWanted} wanted</span>
+                  </div>
+                </div>
+
                 <div className="statusPills">
-                  <span className={`statusPill ${collectionState[selectedIssue.issueNumber] === "owned" ? "owned" : ""}`}>
-                    {collectionState[selectedIssue.issueNumber] === "owned" ? "Owned now" : "Not owned"}
+                  <span className={`statusPill ${selectedSeriesState[selectedIssue.issueNumber] === "owned" ? "owned" : ""}`}>
+                    {selectedSeriesState[selectedIssue.issueNumber] === "owned" ? "Owned now" : "Not owned"}
                   </span>
-                  <span className={`statusPill ${collectionState[selectedIssue.issueNumber] === "wanted" ? "wanted" : ""}`}>
-                    {collectionState[selectedIssue.issueNumber] === "wanted" ? "On want list" : "Not on want list"}
+                  <span className={`statusPill ${selectedSeriesState[selectedIssue.issueNumber] === "wanted" ? "wanted" : ""}`}>
+                    {selectedSeriesState[selectedIssue.issueNumber] === "wanted" ? "On want list" : "Not on want list"}
                   </span>
                 </div>
 
                 <div className="actionGrid">
-                  <button className="actionButton owned" onClick={() => setStatus(selectedIssue.issueNumber, "owned")} type="button">
-                    Mark Owned
+                  <button
+                    className="actionButton owned"
+                    onClick={() => setStatus(selectedSeries.id, selectedIssue.issueNumber, "owned")}
+                    type="button"
+                  >
+                    Mark owned
                   </button>
-                  <button className="actionButton wanted" onClick={() => setStatus(selectedIssue.issueNumber, "wanted")} type="button">
-                    Mark Wanted
+                  <button
+                    className="actionButton wanted"
+                    onClick={() => setStatus(selectedSeries.id, selectedIssue.issueNumber, "wanted")}
+                    type="button"
+                  >
+                    Mark wanted
                   </button>
-                  <button className="actionButton clear" onClick={() => setStatus(selectedIssue.issueNumber)} type="button">
-                    Clear
+                  <button
+                    className="actionButton clear"
+                    onClick={() => setStatus(selectedSeries.id, selectedIssue.issueNumber)}
+                    type="button"
+                  >
+                    Clear state
                   </button>
                 </div>
 
-                <div className="detailCard">
-                  <p className="detailLabel">Issue status</p>
-                  <h3>
-                    #{selectedIssue.issueNumber}{" "}
-                    <span>{collectionState[selectedIssue.issueNumber] ? collectionState[selectedIssue.issueNumber] : "unmarked"}</span>
-                  </h3>
-                  <p>
-                    Use the cover wall on the right to move quickly across the run. The current selection stays pinned
-                    here so the experience feels more like a portal than a long page.
-                  </p>
+                <div className="detailCard noteCard">
+                  <p className="detailLabel">Planning note</p>
+                  <p>{selectedSeries.sourceNote}</p>
                 </div>
               </div>
             </div>
@@ -195,20 +254,20 @@ export function Dashboard({ issues }: DashboardProps) {
           <section className="panel panelWall">
             <div className="wallHead">
               <div>
-                <p className="sectionLabel">Cover wall</p>
-                <h2>Primary Covers</h2>
+                <p className="sectionLabel">Issue wall</p>
+                <h2>{selectedSeries.title}</h2>
               </div>
-              <span className="wallCount">{issues.length} cards</span>
+              <span className="wallCount">{selectedSeries.issueCount} cards</span>
             </div>
 
             <div className="coverWall">
-              {issues.map((issue) => {
-                const status = collectionState[issue.issueNumber];
+              {selectedSeries.issues.map((issue) => {
+                const status = selectedSeriesState[issue.issueNumber];
 
                 return (
                   <button
                     className={`coverCard ${selectedIssue.issueNumber === issue.issueNumber ? "selected" : ""} ${status ?? "neutral"}`}
-                    key={issue.issueNumber}
+                    key={`${selectedSeries.id}-${issue.issueNumber}`}
                     onClick={() => setSelectedIssueNumber(issue.issueNumber)}
                     type="button"
                   >

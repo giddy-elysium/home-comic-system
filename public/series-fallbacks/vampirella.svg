@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#1b1017" />
+      <stop offset="100%" stop-color="#6d1526" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="1200" fill="url(#bg)" />
+  <rect x="44" y="44" width="712" height="1112" rx="32" fill="none" stroke="#f3c8d0" stroke-width="8" opacity="0.75" />
+  <text x="72" y="150" fill="#ffe2e7" font-family="Georgia, serif" font-size="84" font-weight="700">Vampirella</text>
+  <text x="72" y="235" fill="#ffd4dc" font-family="Arial, sans-serif" font-size="30" letter-spacing="8">OFFICIAL ISSUE COVERS NEXT</text>
+  <path d="M200 940 C250 720 560 720 610 940" stroke="#ffd4dc" stroke-width="18" fill="none" opacity="0.75" />
+  <circle cx="280" cy="620" r="90" fill="#ffccd5" opacity="0.28" />
+  <circle cx="520" cy="620" r="90" fill="#ffccd5" opacity="0.18" />
+</svg>
